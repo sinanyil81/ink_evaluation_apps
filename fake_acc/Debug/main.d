@@ -8,6 +8,8 @@ main.obj: /opt/ti/ccsv7/tools/compiler/ti-cgt-msp430_17.9.0.STS/include/intrinsi
 main.obj: /opt/ti/ccsv7/tools/compiler/ti-cgt-msp430_17.9.0.STS/include/intrinsics_legacy_undefs.h
 main.obj: /opt/ti/ccsv7/ccs_base/msp430/include/legacy.h
 main.obj: /opt/ti/ccsv7/tools/compiler/ti-cgt-msp430_17.9.0.STS/include/stdint.h
+main.obj: ../accPattern.txt
+main.obj: ../signalPattern.txt
 
 ../main.c: 
 /opt/ti/ccsv7/ccs_base/msp430/include/msp430.h: 
@@ -17,3 +19,5 @@ main.obj: /opt/ti/ccsv7/tools/compiler/ti-cgt-msp430_17.9.0.STS/include/stdint.h
 /opt/ti/ccsv7/tools/compiler/ti-cgt-msp430_17.9.0.STS/include/intrinsics_legacy_undefs.h: 
 /opt/ti/ccsv7/ccs_base/msp430/include/legacy.h: 
 /opt/ti/ccsv7/tools/compiler/ti-cgt-msp430_17.9.0.STS/include/stdint.h: 
+../accPattern.txt: 
+../signalPattern.txt: 

@@ -23,7 +23,6 @@ thread1.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/isr.h
 thread1.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/isrmanager.h
 thread1.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/persistentqueue.h
 thread1.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/channel/channel.h
-thread1.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/timer/timer.h
 
 ../thread1.c: 
 ../app.h: 
@@ -48,4 +47,3 @@ thread1.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/timer/timer.h
 /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/isrmanager.h: 
 /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/persistentqueue.h: 
 /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/channel/channel.h: 
-/home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/timer/timer.h: 

@@ -1,30 +1,219 @@
 #include <msp430.h> 
 #include <stdint.h>
 
-//#define FIXED
-#define STABLE 1
+//#define ACC
+//#define SIG
+//#define STABLE 1505
 //uint16_t data[] ={};
 
-#ifdef FIXED
-    uint16_t data[] = {
-    #include "powerPatterns.txt"
+
+//Dataset size
+#define DATASET 999
+//Logic Analyzer trigger
+
+#define TRIGGER
+//#define SEMI_STABLE
+
+//UART communication codes
+#define ACC 13
+#define SIGNAL 52
+#define FREE 166
+#define STOP 26
+
+//Boundaries in "amplitude" for raising a pin 
+#define BOUND_SINGAL 1000
+#define BOUND_ACC 800
+
+
+//Import dataset
+#ifdef ACC
+    static const uint16_t data_acc[] = {
+    #include "accPattern.txt"
+    };
+#endif
+#ifdef SIGNAL
+    static const uint16_t data_singal[] = {
+    #include  "signalPattern.txt"
     };
 #elif STABLE
-    uint8_t data[] = {1,2,3,4,5,6,7,8,9,10,1,2,3,4,5,6,7,8,9,10,1,2,3,4,5,6,7,8,9,10,1,2,3,4,5,6,7,8,9,10,1,2,3,4,5,6,7,8,9,10};
+    uint16_t data[DATASET+1] ;
+#endif
+#ifdef SEMI_STABLE
+    uint16_t data_acc[] = {1505,1457,1505,1457,1505,1457,1505,1457,1505,1457,1505,1457,1505,1457,1505,1457,1505,1457,1505,1457};
 #endif
 
 
-/**
- * main.c
- */
-volatile unsigned char RXData = 0;
-volatile unsigned char TXData = 1;
-volatile uint8_t Rx = 666;
-uint8_t flag_start = 13;
-uint8_t flag_stop = 26;
+uint16_t RXData = 0;
+static uint8_t flag = FREE;
+
+//Boundaries for signal detection
+static const uint16_t bound_acc = BOUND_ACC;
+static const uint16_t bound_signal = BOUND_SINGAL;
+
+//flags for uart communication
+static const uint8_t flag_acc	 = ACC;
+static const uint8_t flag_free	 = FREE ;
+static const uint8_t flag_stop	 = STOP;
+static const uint8_t flag_signal = SIGNAL;
+
+//forward declarations
+void setup_mcu();
+void uartSend(unsigned char *pucData, uint8_t ucLength); 
+void interrupt_pin_raise(uint16_t data, uint8_t cur_flag);
+void led_state();
+void blink_on();
+void blink_off();
 
 int main(void)
 {
+    uint16_t i = 0;
+	setup_mcu();
+#ifdef TRIGGER
+    P3OUT |= BIT5;
+    P3OUT &= ~BIT5;
+#endif
+	
+	//enable interrupts;
+	__bis_SR_register(GIE);
+	
+	 while (1)
+	{
+		//raise a pin if the boundary has been exceeded 
+		interrupt_pin_raise(i,flag);
+
+		if (flag == ACC)
+		{
+			P1OUT |= BIT1;
+			uartSend(&data_acc[i], 2);
+
+		}
+		else if (flag == SIGNAL)
+		{
+			P1OUT |= BIT0;
+			uartSend(&data_singal[i],2);
+		}
+		else if(flag == STOP)
+		{
+		 	led_state();
+		}
+		
+		if (++i > DATASET)
+		{
+			i = 0;
+		}
+	}
+		
+}
+
+void interrupt_pin_raise(uint16_t data, uint8_t cur_flag){
+
+
+	if (data_acc[data] >= bound_acc)
+	{	
+		P3OUT |= BIT4 | BIT5;
+		blink_on();
+		__delay_cycles(5000);	
+	}
+	else
+	{
+		P3OUT &= ~(BIT4 | BIT5);
+		__delay_cycles(5000);
+	}
+
+	if (data_singal[data] >= bound_signal)
+	{
+		blink_on();
+		P3OUT |= BIT3 | BIT6;
+		__delay_cycles(5000);
+	}
+	else
+	{
+		P3OUT &= ~(BIT3 | BIT6);
+		__delay_cycles(5000);
+	}
+	blink_off();
+}
+
+void blink_off(){
+	//debug led 
+	P1OUT &= ~(BIT0 | BIT1);
+}
+
+void blink_on(){
+	//debug led  
+    P1OUT |= BIT0 | BIT1;
+}
+
+void led_state(){
+	
+	//debug blink ;)
+	P1OUT &= ~BIT1;
+	P1OUT |=  BIT0;
+
+}
+void uartSend(unsigned char *pucData, uint8_t ucLength) 
+{
+	while(ucLength)
+	{
+		// Wait for TX buffer to be ready for new data
+		while(!(UCA3IFG & UCTXIFG));
+		// Push data to TX buffer
+		UCA3TXBUF = *pucData;
+
+		// Update variables
+		ucLength--;
+		pucData++;
+	}
+
+	// Wait until the last byte is completely sent
+	while(UCA3STATW & UCBUSY);
+}
+
+
+#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
+#pragma vector=EUSCI_A3_VECTOR
+__interrupt void USCI_A3_ISR(void)
+#elif defined(__GNUC__)
+void __attribute__ ((interrupt(EUSCI_A3_VECTOR))) USCI_A3_ISR (void)
+#else
+#error Compiler not supported!
+#endif
+{
+  switch(__even_in_range(UCA3IV, USCI_UART_UCTXCPTIFG))
+  {
+    case USCI_NONE: break;
+    case USCI_UART_UCRXIFG:
+		RXData = UCA3RXBUF;                   // Read buffer
+		
+		switch((uint8_t) RXData){
+			case ACC:
+				flag = ACC;
+				break;		
+			case SIGNAL:
+				flag = SIGNAL;
+				break;
+			case STOP:
+				flag = STOP;
+				break;
+			case FREE :
+				flag = FREE;
+				break;
+			default:
+				//flag = 404;
+				break;
+		}
+		//P1OUT = BIT0;                      // If incorrect turn on P1.0
+		//__delay_cycles(50);
+		//P1OUT ^= BIT0;                      // If incorrect turn on P1.0
+      break;
+    case USCI_UART_UCTXIFG: break;
+    case USCI_UART_UCSTTIFG: break;
+    case USCI_UART_UCTXCPTIFG: break;
+  }
+}
+
+void setup_mcu(){
+
 	WDTCTL = WDTPW | WDTHOLD;	// stop watchdog timer
 
 	// Configure GPIO
@@ -34,8 +223,8 @@ int main(void)
 	P1OUT &= ~BIT1;                           // Clear P1.0 output latch
 	P1DIR |= BIT1;                            // For LED on P1.0
 
-	P3OUT &= ~(BIT4|BIT5);
-   	P3DIR |= BIT4 | BIT5;
+	P3OUT &= ~(BIT4|BIT5|BIT6| BIT3);		  //Set up pin 3.4-3.5 for accel notify 
+   	P3DIR |= BIT4 | BIT5 | BIT6 | BIT3;		  //Set up pin 3.3-3.6 for signal2 notify
 
     PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
                                             // to activate previously configured port settings
@@ -78,91 +267,5 @@ int main(void)
     UCA3CTLW0 &= ~UCSWRST;                  // Initialize eUSCI
     UCA3IE |= UCRXIE;                       // Enable USCI_A3 RX interrupt
 #endif
-    
-	uint8_t *p;
-	uint8_t i  = 0;
-	uint16_t bound = 1;
 
-	//enable interrupts;
-	__bis_SR_register(GIE);
-	
-	 while (1)
-	{
-		
-		if (data[i] >= bound)
-		{
-			
-			P3OUT |= BIT4 | BIT5;
-
-		}
-		else
-		{
-
-			P3OUT &= ~(BIT4 | BIT5);
-		}
-
-		
-		
-		if (Rx == flag_start)
-		{
-			P1OUT &= ~BIT0;
-			P1OUT |=  BIT1;
-		    //p = &data[i];
-		    while(Rx != 52);
-			P1OUT &= ~BIT1;
-		    //UCA3TXBUF = *p;	// Load data onto buffer
-		    UCA3TXBUF = data[i];
-		    while(!(UCA3IFG & UCTXIFG));//Wait for TX to complete
-			// p++;			// Move the data ptr 8bit
-			// UCA3TXBUF = *p;	// Load data onto buffer
-	  //       while(!(UCA3IFG & UCTXIFG));
-	        while(Rx != 104);
-	        P1OUT |=  BIT1;
-	        //__delay_cycles(50);
-
-		}else if(Rx == flag_stop){
-		    P1OUT &= ~BIT1;
-		    P1OUT |=  BIT0;
-
-		}else if(Rx == 666){
-
-		    P1OUT |= BIT0 | BIT1;
-		}else{
-
-		    P1OUT &= ~(BIT0 | BIT1);
-		    __delay_cycles(50000);
-		    P1OUT |= BIT0 | BIT1;
-		}
-
-		if (i > 30) i = 0; //Recycle dataset
-		else i++;
-
-		//__bis_SR_register(LPM0_bits | GIE);     // Enter LPM0, interrupts enabled
-	}
-		
-	return 0;
-}
-
-#if defined(__TI_COMPILER_VERSION__) || defined(__IAR_SYSTEMS_ICC__)
-#pragma vector=EUSCI_A3_VECTOR
-__interrupt void USCI_A3_ISR(void)
-#elif defined(__GNUC__)
-void __attribute__ ((interrupt(EUSCI_A3_VECTOR))) USCI_A3_ISR (void)
-#else
-#error Compiler not supported!
-#endif
-{
-  switch(__even_in_range(UCA3IV, USCI_UART_UCTXCPTIFG))
-  {
-    case USCI_NONE: break;
-    case USCI_UART_UCRXIFG:
-		Rx = UCA3RXBUF;                   // Read buffer
-		//P1OUT = BIT0;                      // If incorrect turn on P1.0
-		//__delay_cycles(50);
-		//P1OUT ^= BIT0;                      // If incorrect turn on P1.0
-      break;
-    case USCI_UART_UCTXIFG: break;
-    case USCI_UART_UCSTTIFG: break;
-    case USCI_UART_UCTXCPTIFG: break;
-  }
 }

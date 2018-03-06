@@ -8,7 +8,7 @@ __shared(
 
 __USE_CHANNEL(THREAD1,THREAD2);
 
-TASK(task1);
+ENTRY_TASK(task1);
 
 
 // called at the very first boot
@@ -19,7 +19,7 @@ void thread1_init(){
 }
 
 
-TASK(task1){
+ENTRY_TASK(task1){
 
   // Configure GPIO
   P1OUT &= BIT2;                            // Pull-down resistor on P1.2
@@ -35,16 +35,19 @@ TASK(task1){
     return NULL;
 }
 
+isr_event_t timer_event;
 
-__interrupt(PORT1_VECTOR)
+
+_interrupt(PORT1_VECTOR)
 {
  	P1IFG &= ~BIT2;                         // Clear P1.2 IFG
     P1IE = 0;                               // P1.2 interrupt disable
     if(!__EVENT_BUFFER_FULL(THREAD2)){
-//        timer_event.ISRtype = 0;
-//        timer_event.data = NULL;
-//        timer_event.size = 0;
-//        timer_event.timestamp = 0;
+        timer_event.data = NULL;
+        timer_event.size = 0;
+        timer_event.timestamp = 1;
+
+        __SIGNAL_EVENT(THREAD2,&timer_event);
 
     }
     __SIGNAL(THREAD2);

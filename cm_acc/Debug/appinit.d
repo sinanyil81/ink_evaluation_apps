@@ -23,7 +23,6 @@ appinit.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/isr.h
 appinit.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/isrmanager.h
 appinit.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/persistentqueue.h
 appinit.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/channel/channel.h
-appinit.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/timer/timer.h
 
 ../appinit.c: 
 ../app.h: 
@@ -48,4 +47,3 @@ appinit.obj: /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/timer/timer.h
 /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/isrmanager.h: 
 /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/isr/persistentqueue.h: 
 /home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/channel/channel.h: 
-/home/dpatoukas/Documents/TUDelft/Thesis/Ink++/InK/timer/timer.h: 
