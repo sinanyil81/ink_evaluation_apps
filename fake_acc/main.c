@@ -21,9 +21,8 @@
 #define STOP 26
 
 //Boundaries in "amplitude" for raising a pin 
-#define BOUND_SINGAL 1000
-#define BOUND_ACC 800
-
+#define BOUND_SINGAL 1900
+#define BOUND_ACC 900
 
 //Import dataset
 #ifdef ACC
@@ -51,10 +50,7 @@ static const uint16_t bound_acc = BOUND_ACC;
 static const uint16_t bound_signal = BOUND_SINGAL;
 
 //flags for uart communication
-static const uint8_t flag_acc	 = ACC;
-static const uint8_t flag_free	 = FREE ;
-static const uint8_t flag_stop	 = STOP;
-static const uint8_t flag_signal = SIGNAL;
+static uint16_t counted	 = 0;
 
 //forward declarations
 void setup_mcu();
@@ -66,7 +62,7 @@ void blink_off();
 
 int main(void)
 {
-    uint16_t i = 0;
+  uint16_t i = 0;
 	setup_mcu();
 #ifdef TRIGGER
     P3OUT |= BIT5;
@@ -75,28 +71,25 @@ int main(void)
 	
 	//enable interrupts;
 	__bis_SR_register(GIE);
-	
 	 while (1)
 	{
 		//raise a pin if the boundary has been exceeded 
 		interrupt_pin_raise(i,flag);
+		// if (flag == ACC)
+		// {
+		// 	uartSend(&data_acc[i], 2);
 
-		if (flag == ACC)
-		{
-			P1OUT |= BIT1;
-			uartSend(&data_acc[i], 2);
+		// }
+		// else if (flag == SIGNAL)
+		// {
+		// 	uartSend(&data_singal[i],2);
+		// }
+		// else if(flag == STOP)
+		// {
+		//  	P1OUT |= BIT0 | BIT1;
+		// }
+		//__delay_cycles(1000);
 
-		}
-		else if (flag == SIGNAL)
-		{
-			P1OUT |= BIT0;
-			uartSend(&data_singal[i],2);
-		}
-		else if(flag == STOP)
-		{
-		 	led_state();
-		}
-		
 		if (++i > DATASET)
 		{
 			i = 0;
@@ -108,30 +101,34 @@ int main(void)
 void interrupt_pin_raise(uint16_t data, uint8_t cur_flag){
 
 
-	if (data_acc[data] >= bound_acc)
-	{	
-		P3OUT |= BIT4 | BIT5;
-		blink_on();
-		__delay_cycles(5000);	
-	}
-	else
+	if (counted == 5)
 	{
-		P3OUT &= ~(BIT4 | BIT5);
-		__delay_cycles(5000);
+		counted = 0;
+		if (data_acc[data] >= bound_acc)
+		{	
+			P3OUT |= BIT4 | BIT5;
+	    	P1OUT |= BIT1;
+		}
+		else
+		{
+			P3OUT &= ~(BIT4 | BIT5);
+	    	P1OUT &= ~BIT1;
+		}
 	}
 
 	if (data_singal[data] >= bound_signal)
 	{
-		blink_on();
+		P1OUT |= BIT0;
 		P3OUT |= BIT3 | BIT6;
-		__delay_cycles(5000);
 	}
 	else
 	{
+		P1OUT &= ~BIT0;
 		P3OUT &= ~(BIT3 | BIT6);
-		__delay_cycles(5000);
 	}
-	blink_off();
+	__delay_cycles(200000);
+	//__delay_cycles(200000);
+	counted++;
 }
 
 void blink_off(){
@@ -141,7 +138,6 @@ void blink_off(){
 
 void blink_on(){
 	//debug led  
-    P1OUT |= BIT0 | BIT1;
 }
 
 void led_state(){
@@ -155,6 +151,7 @@ void uartSend(unsigned char *pucData, uint8_t ucLength)
 {
 	while(ucLength)
 	{
+	    P1OUT ^= BIT1;
 		// Wait for TX buffer to be ready for new data
 		while(!(UCA3IFG & UCTXIFG));
 		// Push data to TX buffer

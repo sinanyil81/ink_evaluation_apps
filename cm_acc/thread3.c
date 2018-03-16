@@ -1,15 +1,28 @@
+//thread4
+
 //thread2.c
 #include "app.h"
 #include "ink.h"
 #include "dsplib/include/DSPLib.h"
 #include "app_intrinsics.h"
 
+/*FFT characteristics definitions*/
+#define FFT_SAMPLES             128
+#define INPUT_AMPLITUDE         0.5
+#define INPUT_FREQUENCY         64
+#define SAMPL_FREQ              512
+#define FFT_FREQ_THRESHOLD      1500
+#define REAL_ADC_FREQ                1000000 / (4 * 4 * 16)
+#define INDEX_THRESHOLD         FFT_FREQ_THRESHOLD / (REAL_ADC_FREQ / (2 * FFT_SAMPLES))
+
+
   /* Allocate 16-bit real FFT data vector with correct alignment */
-DSPLIB_DATA(signal_sampled_input, MSP_ALIGN_FFT_Q15(N_SAMPLES))
- _q15 signal_sampled_input[N_SAMPLES];
+DSPLIB_DATA(tb_fftd, MSP_ALIGN_FFT_Q15(FFT_SAMPLES))
+ _q15 tb_fftd[FFT_SAMPLES];
+
 __shared(
 
-  _q15 signal_data_array[N_SAMPLES]
+  _q15 pers_sdata[FFT_SAMPLES];
 
 )
 
@@ -18,145 +31,176 @@ __shared(
 ENTRY_TASK(task1);
 TASK(task2);
 
-queue tx_queue;
-queue rx_queue;
-unsigned char rx_buff;
-uint16_t data;
-
-
 void thread3_init(){
 
-    // create a thread with priority 15 and entry task task1
+    // create a thread with priority " " and entry task task1
     __CREATE(THREAD3,task1);
 
 }
 
+uint16_t counter;
+uint16_t is;
+_q15 sampled_input[FFT_SAMPLES];
 
 ENTRY_TASK(task1){
-     //setup UART communication and hardware
-
-    __delay_cycles(100000);
-    setup_mcu();
-  //setup the receive queue
-  __bic_SR_register(GIE);
-   while(rx_queue.count) dequeue(&rx_queue);
-   __bis_SR_register(GIE);
-   init_queue(&rx_queue);
-
-
-  //flags for uart communication
-	static const uint8_t flag_start = ACC;
-	static const uint8_t flag_free = FREE;
-  static const uint8_t flag_stop = STOP;
-  static const uint8_t flag_signal = SIGNAL;
-
-  unsigned char *ptr;
-  uint8_t collected = 0;
-  uint16_t buff;
-
-
-  //send uart request until data are collected
-  tx_data(SIGNAL);
   
-  while(collected < N_SAMPLES)
-  {
-    if (rx_queue.count >= 2)
-    {
-        ptr = &buff;
-        
-        __bic_SR_register(GIE);
-        *ptr = dequeue(&rx_queue);
-        ptr++;
-        *ptr = dequeue(&rx_queue);
-        __bis_SR_register(GIE);
-        
-        __SET(signal_data_array[collected++],(uint16_t) buff);
-        
-        buff = 0;        
-      }
+  //P3OUT |= BIT0;
+  __disable_interrupt();
+	// save interrupt state and then disable interrupts
+	is = __get_interrupt_state();
 
-      //RED LED successful collection
-      P4OUT |=  BIT6;
-  }
+	// configure ADC
+	ADC_config();
 
-  collected = 0;
-  tx_data(flag_stop);
-  tx_data(flag_free);
+	counter = 0;
 
-  return task2;
+	//why enable here and restore later
+	__enable_interrupt();
+
+	while(counter < FFT_SAMPLES);
+	
+	// disable interrupt for (only) MEM0
+	ADC12IER0 &= ~ADC12IE0;
+
+
+	// turn off the ADC to save energy
+	ADC12CTL0 &= ~ADC12ON;
+  
+	// restore interrupt state
+	__set_interrupt_state(is);
+ 	uint8_t i;
+	for (i = 0; i < FFT_SAMPLES; i++)
+	{
+    __SET(pers_sdata[i], sampled_input[i]);
+	}
+  //P3OUT &= ~BIT0;
+	return task2;
 }
-   
+
 TASK(task2){
-
-
-  /* Function definitions */
-  uint32_t sample_count = 0;
-  uint32_t fft_count    = 0;
-  uint32_t abs_count    = 0;
-  uint32_t max_count    = 0;
-
+  // P3OUT |= BIT5;
   msp_status status;
 
   uint8_t i;
-  for (i = 0; i < N_SAMPLES; i++)
+  for (i = 0; i < FFT_SAMPLES; i++)
   {
-    signal_sampled_input[i] = __GET(signal_data_array[i]);
+    tb_fftd[i] = __GET(pers_sdata[i]);
   }
   //  /* Configure parameters for FFT */
   msp_fft_q15_params fftParams;
   msp_abs_q15_params absParams;
   msp_max_q15_params maxParams;
 
-  fftParams.length = N_SAMPLES;
+  fftParams.length = FFT_SAMPLES;
   fftParams.bitReverse = 1;
-  fftParams.twiddleTable = msp_cmplx_twiddle_table_16_q15;
+  fftParams.twiddleTable = NULL;
+#if !defined(MSP_USE_LEA)
+  fftParams.twiddleTable = msp_cmplx_twiddle_table_128_q15;
+#else
+  fftParams.twiddleTable = NULL;
+#endif
 
-  absParams.length = N_SAMPLES;
+  absParams.length = FFT_SAMPLES;
 
-  maxParams.length = N_SAMPLES;
+  maxParams.length = FFT_SAMPLES;
 
   uint16_t shift = 0;
   uint16_t max_index = 0;
 
   /* Perform FFT */
-  status = msp_fft_fixed_q15(&fftParams, signal_sampled_input);
-  msp_checkStatus(status);
+  status = msp_fft_auto_q15(&fftParams, tb_fftd, &shift);
+  //msp_checkStatus(status);
 
   /* Remove DC component  */
-  signal_sampled_input[0] = 0;
+  tb_fftd[0] = 0;
 
   /* Compute absolute value of FFT */
-  status = msp_abs_q15(&absParams, signal_sampled_input, signal_sampled_input);
-  msp_checkStatus(status);
+  status = msp_abs_q15(&absParams, tb_fftd, tb_fftd);
+  //msp_checkStatus(status);
 
   /* Get peak frequency */
-  status = msp_max_q15(&maxParams, signal_sampled_input, NULL, &max_index); 
-  msp_checkStatus(status);
-
-  __no_operation();
+  status = msp_max_q15(&maxParams, tb_fftd, NULL, &max_index); 
+  //msp_checkStatus(status);
 
   /* Turn on red LED if peak frequency greater than threshold */
-  uint16_t tmp = 1000;
-  if (max_index < 5)
-  {
-      //RED ON-GREEN OFF
-      P1OUT |= BIT0;
-      notify_P3P5();
-      P4OUT &= BIT6;
-  }
-  else
-  {
-      P4OUT |= BIT6;
-      while(tmp--)
-      {  
-       _delay_cycles(50000);
-        P1OUT ^= BIT0;
-      }
-  }
- __SIGNAL(THREAD1);
+  // uint16_t tmp = 1000;
+  // if (max_index > INDEX_THRESHOLD)
+  // {
+  //     //RED ON-GREEN OFF
+  //     notify_P3P5();
+  // }
+  // else
+  // {
+  //     notify_P3P5();
+  // }
+  __SIGNAL(THREAD1);
+  // P3OUT &= ~BIT5;
+  P3OUT |= BIT6;
+  P3OUT &= ~BIT6;
+   P1IE |= BIT2;                              // P1.2 interrupt enabled
 
  return NULL;
 
 }
 
 
+/**
+ * ADC Interrupt handler
+ */
+
+_interrupt(ADC12_VECTOR)
+{
+    // static uint16_t i = 0;
+    switch(__even_in_range(ADC12IV,12))
+    {
+    case  0: break;                         // Vector  0:  No interrupt
+    case  2: break;                         // Vector  2:  ADC12BMEMx Overflow
+    case  4: break;                         // Vector  4:  Conversion time overflow
+    case  6: break;                         // Vector  6:  ADC12BHI
+    case  8: break;                         // Vector  8:  ADC12BLO
+    case 10: break;                         // Vector 10:  ADC12BIN
+    case 12:                                // Vector 12:  ADC12BMEM0 Interrupt
+        if (counter < FFT_SAMPLES)
+            // Read ADC12MEM0 value
+            sampled_input[counter++] = ADC12MEM0;
+        else {
+            // disable ADC conversion and disable interrupt request for MEM0
+            ADC12CTL0 &= ~ADC12ENC;
+            ADC12IER0 &= ~ADC12IE0;
+        }
+        break;
+    case 14: break;                         // Vector 14:  ADC12BMEM1
+    case 16: break;                         // Vector 16:  ADC12BMEM2
+    case 18: break;                         // Vector 18:  ADC12BMEM3
+    case 20: break;                         // Vector 20:  ADC12BMEM4
+    case 22: break;                         // Vector 22:  ADC12BMEM5
+    case 24: break;                         // Vector 24:  ADC12BMEM6
+    case 26: break;                         // Vector 26:  ADC12BMEM7
+    case 28: break;                         // Vector 28:  ADC12BMEM8
+    case 30: break;                         // Vector 30:  ADC12BMEM9
+    case 32: break;                         // Vector 32:  ADC12BMEM10
+    case 34: break;                         // Vector 34:  ADC12BMEM11
+    case 36: break;                         // Vector 36:  ADC12BMEM12
+    case 38: break;                         // Vector 38:  ADC12BMEM13
+    case 40: break;                         // Vector 40:  ADC12BMEM14
+    case 42: break;                         // Vector 42:  ADC12BMEM15
+    case 44: break;                         // Vector 44:  ADC12BMEM16
+    case 46: break;                         // Vector 46:  ADC12BMEM17
+    case 48: break;                         // Vector 48:  ADC12BMEM18
+    case 50: break;                         // Vector 50:  ADC12BMEM19
+    case 52: break;                         // Vector 52:  ADC12BMEM20
+    case 54: break;                         // Vector 54:  ADC12BMEM21
+    case 56: break;                         // Vector 56:  ADC12BMEM22
+    case 58: break;                         // Vector 58:  ADC12BMEM23
+    case 60: break;                         // Vector 60:  ADC12BMEM24
+    case 62: break;                         // Vector 62:  ADC12BMEM25
+    case 64: break;                         // Vector 64:  ADC12BMEM26
+    case 66: break;                         // Vector 66:  ADC12BMEM27
+    case 68: break;                         // Vector 68:  ADC12BMEM28
+    case 70: break;                         // Vector 70:  ADC12BMEM29
+    case 72: break;                         // Vector 72:  ADC12BMEM30
+    case 74: break;                         // Vector 74:  ADC12BMEM31
+    case 76: break;                         // Vector 76:  ADC12BRDY
+    default: break;
+    }
+}

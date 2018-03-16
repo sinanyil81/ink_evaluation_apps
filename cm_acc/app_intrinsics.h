@@ -6,7 +6,7 @@
 
 /* FFT characteristics definitions */
 //Dummy values 
-#define N_SAMPLES               16
+#define N_SAMPLES               128
 #define INPUT_AMPLITUDE         0.5
 #define INPUT_FREQUENCY         64
 #define SAMPL_FREQ              512
@@ -23,33 +23,18 @@
 #define BOUND_SINGAL 1000
 #define BOUND_ACC 1250
 
-// Queue
-#define QUEUE_SIZE 256
-typedef struct {
-    uint8_t Data[QUEUE_SIZE];
-    uint16_t first,last;
-    uint16_t count; 
-} queue;
+#define ACC_SAMPLES 3
 
+//filter bound 
+#define BOUND 2000
 
+//high priority signal filter
+uint8_t valid_signal(void);
+
+//setup ADC
+void ADC_config();
 
 //mcu settings 
 void setup_mcu();
-
-//UART communication
-void tx_data(uint8_t flag);
-
-void init_queue(queue *q);
-
-void enqueue(queue *q,char x);
-
-char dequeue(queue *q);
-
-//for visual debugging 
-void led_signal();
-
-//logic analyzer
-void notify_P3P5();
-void notify_P3P4();
 
 #endif //APP_INTR_H_

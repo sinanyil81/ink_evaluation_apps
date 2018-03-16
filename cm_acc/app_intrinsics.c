@@ -1,56 +1,38 @@
 //cm_acc Header
 #include "app_intrinsics.h"
 #include "ink.h"
+#include "adxl345_i2c_lib.h"
+#include "avg_filter.h"
 
-extern  queue rx_queue;
-extern  unsigned char rx_buff;
+inline uint8_t valid_signal(void){
 
-
-_interrupt(USCI_A1_VECTOR)
-{
-  switch(__even_in_range(UCA1IV,USCI_UART_UCTXCPTIFG))
-  {
-    case USCI_NONE: break;
-    case USCI_UART_UCRXIFG:
-    	
-
-      rx_buff = UCA1RXBUF;
-      enqueue(&rx_queue , rx_buff);
-
-      break;
-    case USCI_UART_UCTXIFG: break;
-    case USCI_UART_UCSTTIFG: break;
-    case USCI_UART_UCTXCPTIFG: break;
+  //__disable_interrupt();
+  uint8_t acc_data[NUM_BYTES_RX];
+  //get samples 
+  i2c_init();
+  i2c_write(ADXL_345 , ADXL_CONF_REG , 0x00);
+  i2c_write(ADXL_345, ADXL_CONF_REG, 0x10);
+  i2c_write(ADXL_345, ADXL_CONF_REG, 0x08);
+  
+  uint8_t collected = 0;
+  uint16_t tmp,current;
+  while(ACC_SAMPLES-collected){
+        collected++;
+        i2c_read_multi(ADXL_345, READ_REG, NUM_BYTES_RX, &acc_data);
+        tmp = (((int16_t)acc_data[5]) << 8) | acc_data[4];
+        current = medfilter(tmp);
+        __delay_cycles(200);
   }
-}
-
-void led_signal(){
-  P1OUT |= BIT0;
-  __delay_cycles(100000);
-  P1OUT &= ~BIT0;
-
-}
-
-void tx_data(uint8_t flag){
-
-  //code to sample the "fake" signal source
-  uint8_t *p;
-
-  //transmit code
-  p = &flag;
-  UCA1TXBUF = *p; // Load data onto buffer
-  while(!(UCA1IFG & UCTXIFG));
+  //__enable_interrupt();
+  if (current < BOUND ) return 1;
+  else return 0;
 }
 
 void setup_mcu(){
 
-  //Logic analyzer pins
-  P3OUT &= ~(BIT4|BIT5); 
-  P3DIR |= BIT4 | BIT5;
-
   // Configure GPIO
-  P2SEL1 |= BIT5 | BIT6;                    // USCI_A0 UART operation
-  P2SEL0 &= ~(BIT5 | BIT6);
+  //P2SEL1 |= BIT5 | BIT6;                    // USCI_A0 UART operation
+  // P2SEL0 &= ~(BIT5 | BIT6);
 
   //Led
   P1OUT &= ~BIT0;                           // Clear P1.0 output latch
@@ -60,7 +42,7 @@ void setup_mcu(){
 
   PM5CTL0 &= ~LOCKLPM5;                   // Disable the GPIO power-on default high-impedance mode
                                           // to activate previously configured port settings
-
+#ifdef UART
 #ifdef BAUD_115
    // Configure USCI_A0 for UART mode
   UCA1CTLW0 = UCSWRST;                      // Put eUSCI in reset
@@ -94,42 +76,65 @@ void setup_mcu(){
   UCA1IE |= UCRXIE;                         // Enable USCI_A0 RX interrupt
 
 #endif
+#endif
 }
 
-void init_queue(queue *q){
-  
-  q->first = 0;
-  q->last = QUEUE_SIZE - 1;
-  q->count = 0;
-}
-
-void enqueue(queue *q,char x){
-
-  q->last = (q->last + 1) % QUEUE_SIZE;
-  q->Data[ q->last ] = x;
-  q->count += 1;
-}
-
-char dequeue(queue *q){
-
-  char x = q->Data[ q->first ];
-  q->first = (q->first + 1) % QUEUE_SIZE;
-  q->count -= 1;
-  return x;
-}
-
-
-void notify_P3P4(){
-
-	P3OUT |= BIT4;
-	__delay_cycles(50000);
-	P3OUT &= BIT4;
-}
-
-
-void notify_P3P5(){
-
-	P3OUT |= BIT5;
-	__delay_cycles(50000);
-	P3OUT &= BIT5;
+/**
+ * Configure ADC for microphone sampling
+ */
+void ADC_config()
+{
+    //TODO:free 1.3
+    // Pin P1.3 set for Ternary Module Function (which includes A3)
+    P1SEL0 |= BIT3;
+    P1SEL1 |= BIT3;
+ 
+    // Clear ENC bit to allow register settings
+    ADC12CTL0 &= ~ADC12ENC;
+ 
+    // Sample-and-hold source select
+    //
+    // 000 -> ADC12SC bit (default)
+    // ADC12CTL1 &= ~(ADC12SHS0 | ADC12SHS1 | ADC12SHS2);
+ 
+    // Clock source select
+    //
+    // source: MCLK (DCO, 1 MHz)
+    // pre-divider: 4
+    // divider: 4
+    ADC12CTL1 |= ADC12SSEL_2 | ADC12PDIV_1 | ADC12DIV_3;
+ 
+    // sampling period select for MEM0: 64 clock cycles (*)
+    // multiple sample and conversion: enabled
+    // ADC module ON
+    ADC12CTL0 |= ADC12SHT0_2 | ADC12MSC | ADC12ON;
+    // (*) freq = MCLK / (ADC12PDIV_0 * ADC12DIV_0 * ADC12SHT0_4)
+    //          = 1000000 / (4 * 4 * 16)
+    //          = 3906 Hz
+ 
+    // conversion sequence mode: repeat-single-channel
+    // pulse-mode select: SAMPCON signal is sourced from the sampling timer
+    ADC12CTL1 |= ADC12CONSEQ_2 | ADC12SHP;
+ 
+    // resolution: 12 bit
+    // data format: right-aligned, unsigned
+    ADC12CTL2 |= ADC12RES__12BIT;
+    ADC12CTL2 &= ~ADC12DF;
+ 
+    // conversion start address: MEM0
+    ADC12CTL3 |= ADC12CSTARTADD_0;
+ 
+    // MEM0 control register
+    // reference select: VR+ = AVCC (3V), VR- = AVSS (0V)
+    // input channel select: A3
+    ADC12MCTL0 |= ADC12VRSEL_0 | ADC12INCH_3;
+ 
+    // Clear interrupt for MEM0
+    ADC12IFGR0 &= ~ADC12IFG0;
+ 
+    // Enable interrupt for (only) MEM0
+    ADC12IER0 = ADC12IE0;
+ 
+    // Trigger first conversion (Enable conversion and Start conversion)
+    ADC12CTL0 |= ADC12ENC | ADC12SC;
 }
