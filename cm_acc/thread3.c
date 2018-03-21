@@ -119,7 +119,7 @@ TASK(task2){
   /* Get peak frequency */
   status = msp_max_q15(&maxParams, tb_fftd, NULL, &max_index); 
 
-  __SIGNAL(THREAD1);
+  //__SIGNAL(THREAD1);
   P3OUT &= ~BIT5;
   
   P3OUT |= BIT6;

@@ -11,7 +11,8 @@
 #include <stdio.h>
 #include <math.h>
 
-//#define EXPRIRATION_TIME 50000
+//Classification part expires at 543,0 ms
+#define EXPRIRATION_TIME 5430
 
 // Number of samples to discard before recording training set
 #define NUM_WARMUP_SAMPLES 3
@@ -109,7 +110,6 @@ void thread2_init(){
 
 ENTRY_TASK(task1){
   
-
   P3OUT |= BIT0;
   
   setup_mcu();
@@ -175,6 +175,9 @@ TASK(task2){
 
   P3OUT &= ~BIT0;
 
+  //Initialize the AR-app 
+  //AR test app is used here for an estimation 
+  //of a high computation application 
   return task_init;
 
 }
@@ -202,7 +205,7 @@ TASK(task_init)
 
   P3OUT |= BIT0;
     
-  uint32_t tmp = __get_time();
+  //uint32_t tmp = __get_time();
 #ifdef EXPRIRATION_TIME
   set_expire_timer(THREAD2,EXPRIRATION_TIME);
 #endif
@@ -336,7 +339,7 @@ TASK(task_transform)
 {
   P3OUT |= BIT0;
 
-    int8_t ios_i;
+  int8_t ios_i;
     
   unsigned samplesInWindow = __GET(_v_samplesInWindow);
 
@@ -556,26 +559,25 @@ TASK(task_stats)
 TASK(task_idle) 
 {
   P3OUT |= BIT0;
-#ifdef EXPRIRATION_TIME
-  stop_expire_timer(THREAD2);
-#endif
-  P2OUT |= BIT5;
-    P2OUT &= ~BIT5;
 
   uint8_t lc_pinCont = __GET(pinCont);
+  #ifdef EXPRIRATION_TIME
+  stop_expire_timer(THREAD2);
+  P2OUT |= BIT5;
+  P2OUT &= ~BIT5;
+  #endif
+  P3OUT |= BIT4;
+  P3OUT &=~BIT4;
+  P1IE |= BIT4;                               // P1.4 interrupt enabled
 
 
     if (lc_pinCont){
       __SET(pinCont,0);
-        __SIGNAL(THREAD1);
+      __SIGNAL(THREAD1);
       __no_operation();
     }
+
   P3OUT &= ~BIT0;
-  P3OUT |= BIT4;
-  P3OUT &=~BIT4;
-
-  P1IE |= BIT4;                               // P1.4 interrupt enabled
-
   return NULL;
 }
 

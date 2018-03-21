@@ -61,7 +61,6 @@ _interrupt(PORT1_VECTOR)
         case P1IV_P1IFG0:  break;                   // Vector  2:  P1.0 interrupt flag
         case P1IV_P1IFG1:  break;                   // Vector  4:  P1.1 interrupt flag
         case P1IV_P1IFG2:
-            //__disable_interrupt();                               // interrupt disable
             P1IE &= ~BIT2;
             P1IFG &= ~BIT2;                         // Clear P1.2 IFG
             //P3OUT |= BIT6;
@@ -73,13 +72,11 @@ _interrupt(PORT1_VECTOR)
                 timer_event.size = 0;
                 timer_event.timestamp = 2;
 
-                //__SIGNAL_EVENT(THREAD4,&timer_event);
               }
             //P3OUT &=~BIT6;
               __SIGNAL(THREAD3);
             }
             /* turn on CPU */
-            //__enable_interrupt();
             __bic_SR_register_on_exit(LPM3_bits);
             break;                                  // Vector  6:  P1.2 interrupt flag
         case P1IV_P1IFG3:  break;                   // Vector  8:  P1.3 interrupt flag
@@ -89,19 +86,22 @@ _interrupt(PORT1_VECTOR)
             P1IE &= ~BIT4;
             //__disable_interrupt();
             P1IFG &= ~BIT4;                         // Clear P1.4 IFG
-            //P3OUT |= BIT4;
+            P3OUT |= BIT0;
             if(!__EVENT_BUFFER_FULL(THREAD2))
             {
               timer_event.data = NULL;
               timer_event.size = 0;
               timer_event.timestamp = 1;
 
-              //__SIGNAL_EVENT(THREAD2,&timer_event);
             }
-            //P3OUT &= ~BIT4;
-            __SIGNAL(THREAD2);
+            P3OUT &= ~BIT0;
+
+            //if the same thread is executing finish it 
+            if (__next_thread() != __get_thread(THREAD2))
+            {
+                __SIGNAL(THREAD2);
+            }
             /* turn on CPU */
-            //__enable_interrupt();
             __bic_SR_register_on_exit(LPM3_bits);
             break;
         case P1IV_P1IFG6:  break;          // Vector  14:  P1.6 interrupt flag
