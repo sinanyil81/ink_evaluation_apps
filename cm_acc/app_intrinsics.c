@@ -4,6 +4,9 @@
 #include "adxl345_i2c_lib.h"
 #include "avg_filter.h"
 
+
+
+
 inline uint8_t valid_signal(void){
 
   //__disable_interrupt();
@@ -16,6 +19,7 @@ inline uint8_t valid_signal(void){
   
   uint8_t collected = 0;
   uint16_t tmp,current;
+
   while(ACC_SAMPLES-collected){
         collected++;
         i2c_read_multi(ADXL_345, READ_REG, NUM_BYTES_RX, &acc_data);

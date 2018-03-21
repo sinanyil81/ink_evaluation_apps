@@ -18,13 +18,16 @@ void thread1_init(){
     // create a thread with priority 15 and entry task task1
     __CREATE(THREAD1,task1);
     __SIGNAL(THREAD1);
+    P3OUT |= BIT6;
+    P3OUT &= ~BIT6;
 }
 
 
 ENTRY_TASK(task1){
 
-    P1IE |= BIT4;                               // P1.4 interrupt enabled
-    P1IE |= BIT2;                              // P1.2 interrupt enabled
+
+    P1IE |= BIT4;                              // P1.4 interrupt enabled low priority thread
+    P1IE |= BIT2;                              // P1.2 interrupt enabled high priority thread
     __delay_cycles(15);
 
     uint16_t tmp = 100;
@@ -33,13 +36,16 @@ ENTRY_TASK(task1){
     {
         rand();
     }
-   //  if ((rand() % 2) == 0) {
-   //      __SIGNAL(THREAD2);
-   //  }
 
-   //  else {
-   //      __SIGNAL(THREAD3);
-   // }
+    //if interrupts are not available use this section
+//    if ((rand() % 2) == 0) {
+//
+//        __SIGNAL(THREAD2);
+//    }
+//
+//    else {
+//        __SIGNAL(THREAD3);
+//   }
 
     return NULL;
 }

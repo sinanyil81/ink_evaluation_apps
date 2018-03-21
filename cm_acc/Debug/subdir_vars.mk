@@ -13,7 +13,8 @@ C_SRCS += \
 ../avg_filter.c \
 ../thread1.c \
 ../thread2.c \
-../thread3.c 
+../thread3.c \
+../thread4.c 
 
 C_DEPS += \
 ./adxl345_i2c_lib.d \
@@ -22,7 +23,8 @@ C_DEPS += \
 ./avg_filter.d \
 ./thread1.d \
 ./thread2.d \
-./thread3.d 
+./thread3.d \
+./thread4.d 
 
 OBJS += \
 ./adxl345_i2c_lib.obj \
@@ -31,7 +33,8 @@ OBJS += \
 ./avg_filter.obj \
 ./thread1.obj \
 ./thread2.obj \
-./thread3.obj 
+./thread3.obj \
+./thread4.obj 
 
 OBJS__QUOTED += \
 "adxl345_i2c_lib.obj" \
@@ -40,7 +43,8 @@ OBJS__QUOTED += \
 "avg_filter.obj" \
 "thread1.obj" \
 "thread2.obj" \
-"thread3.obj" 
+"thread3.obj" \
+"thread4.obj" 
 
 C_DEPS__QUOTED += \
 "adxl345_i2c_lib.d" \
@@ -49,7 +53,8 @@ C_DEPS__QUOTED += \
 "avg_filter.d" \
 "thread1.d" \
 "thread2.d" \
-"thread3.d" 
+"thread3.d" \
+"thread4.d" 
 
 C_SRCS__QUOTED += \
 "../adxl345_i2c_lib.c" \
@@ -58,6 +63,7 @@ C_SRCS__QUOTED += \
 "../avg_filter.c" \
 "../thread1.c" \
 "../thread2.c" \
-"../thread3.c" 
+"../thread3.c" \
+"../thread4.c" 
 
 

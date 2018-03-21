@@ -12,7 +12,7 @@
 #define INPUT_FREQUENCY         64
 #define SAMPL_FREQ              512
 #define FFT_FREQ_THRESHOLD      1500
-#define REAL_ADC_FREQ                1000000 / (4 * 4 * 16)
+#define REAL_ADC_FREQ           1000000 / (4 * 4 * 16)
 #define INDEX_THRESHOLD         FFT_FREQ_THRESHOLD / (REAL_ADC_FREQ / (2 * FFT_SAMPLES))
 
 
@@ -26,7 +26,6 @@ __shared(
 
 )
 
-//__USE_CHANNEL(THREAD1,THREAD2);
 
 ENTRY_TASK(task1);
 TASK(task2);
@@ -44,7 +43,7 @@ _q15 sampled_input[FFT_SAMPLES];
 
 ENTRY_TASK(task1){
   
-  //P3OUT |= BIT0;
+  P3OUT |= BIT5;
   __disable_interrupt();
 	// save interrupt state and then disable interrupts
 	is = __get_interrupt_state();
@@ -54,7 +53,6 @@ ENTRY_TASK(task1){
 
 	counter = 0;
 
-	//why enable here and restore later
 	__enable_interrupt();
 
 	while(counter < FFT_SAMPLES);
@@ -73,12 +71,13 @@ ENTRY_TASK(task1){
 	{
     __SET(pers_sdata[i], sampled_input[i]);
 	}
-  //P3OUT &= ~BIT0;
+  P3OUT &= ~BIT5;
 	return task2;
 }
 
 TASK(task2){
-  // P3OUT |= BIT5;
+
+  P3OUT |= BIT5;
   msp_status status;
 
   uint8_t i;
@@ -109,7 +108,6 @@ TASK(task2){
 
   /* Perform FFT */
   status = msp_fft_auto_q15(&fftParams, tb_fftd, &shift);
-  //msp_checkStatus(status);
 
   /* Remove DC component  */
   tb_fftd[0] = 0;
@@ -120,24 +118,14 @@ TASK(task2){
 
   /* Get peak frequency */
   status = msp_max_q15(&maxParams, tb_fftd, NULL, &max_index); 
-  //msp_checkStatus(status);
 
-  /* Turn on red LED if peak frequency greater than threshold */
-  // uint16_t tmp = 1000;
-  // if (max_index > INDEX_THRESHOLD)
-  // {
-  //     //RED ON-GREEN OFF
-  //     notify_P3P5();
-  // }
-  // else
-  // {
-  //     notify_P3P5();
-  // }
   __SIGNAL(THREAD1);
-  // P3OUT &= ~BIT5;
+  P3OUT &= ~BIT5;
+  
   P3OUT |= BIT6;
   P3OUT &= ~BIT6;
-   P1IE |= BIT2;                              // P1.2 interrupt enabled
+  
+  P1IE |= BIT2;                              // P1.2 interrupt enabled
 
  return NULL;
 

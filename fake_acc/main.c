@@ -127,7 +127,8 @@ void interrupt_pin_raise(uint16_t data, uint8_t cur_flag){
 		P3OUT &= ~(BIT3 | BIT6);
 	}
 	__delay_cycles(200000);
-	//__delay_cycles(200000);
+	__delay_cycles(200000);
+	__delay_cycles(200000);
 	counted++;
 }
 
