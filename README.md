@@ -1,4 +1,4 @@
-# ink_evaluation_apps
+# Ink evaluation Apps
 
 [Context behind the test application](https://docs.google.com/document/d/1X30cX489PXjNY8vYAaPlYhnaDSBf8fz7RggUYcwZHU8/edit?usp=sharing)
 
@@ -11,6 +11,8 @@
 **python_scripts** holds the scripts used for evaluating the performance based on csv files extracted from a logic analyzer
 
 **logic_data** holds the data extracted from a logic analyzer and the settings used on them
+
+##Hardware:
 
 ADXL345 is the accelerometer used connected with I2C
 

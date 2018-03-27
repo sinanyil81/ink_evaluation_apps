@@ -23,7 +23,6 @@
 // Number of classifications to complete in one experiment
 #define SAMPLES_TO_COLLECT 512
 
-
 typedef struct 
 {
     int16_t x,y,z;
@@ -112,7 +111,7 @@ void thread2_init(){
 ENTRY_TASK(task1){
   
   P3OUT |= BIT0;
-  
+#ifndef EMULATE
   setup_mcu();
 
   i2c_init();
@@ -131,7 +130,9 @@ ENTRY_TASK(task1){
         z = (((int16_t)acc_data[5]) << 8) | acc_data[4];
         __SET(data_array[collected++],z);
   }
-
+#else
+  __delay_cycles(SAMPLE_ACC_DURATION);
+#endif
   P3OUT &= ~BIT0;
  
   return task2;
@@ -140,6 +141,7 @@ ENTRY_TASK(task1){
 TASK(task2){
 
   P3OUT |= BIT0;
+#ifndef EMULATE
   msp_status status;
 
   uint8_t i;
@@ -173,6 +175,11 @@ TASK(task2){
 
   /* Get peak frequency */
   status = msp_max_q15(&maxParams, sampled_input, NULL, &max_index); 
+#else
+
+  __delay_cycles(FFT_ACC_DURATION);
+
+#endif  
 
   P3OUT &= ~BIT0;
 
@@ -186,7 +193,8 @@ TASK(task2){
 //Dummy data sampling
 void ACCEL_singleSample_(threeAxis_t_8* result){
    
-  P4OUT |= BIT3;
+  // P4OUT |= BIT3;
+#ifndef EMULATE
   i2c_init();
 
   i2c_write(ADXL_345 , ADXL_CONF_REG , 0x00);
@@ -194,8 +202,21 @@ void ACCEL_singleSample_(threeAxis_t_8* result){
   i2c_write(ADXL_345, ADXL_CONF_REG, 0x08);
 
   i2c_read_multi(ADXL_345, READ_REG, NUM_BYTES_RX, &acc_data);
-  P4OUT &= ~BIT3;
-  
+  // P4OUT &= ~BIT3;
+#else
+
+  __delay_cycles(SINGLE_ACC_SAMPLE_DURATION);
+
+  acc_data[0] = 1;
+  acc_data[1] = 2;
+  acc_data[2] = 3;
+  acc_data[3] = 4;
+  acc_data[4] = 5;
+  acc_data[5] = 6;
+
+#endif
+
+
   result->x = (((int16_t)acc_data[1]) << 8) | acc_data[0];//(__GET(_v_seed)*17)%85;
   result->y = (((int16_t)acc_data[3]) << 8) | acc_data[2];//(__GET(_v_seed)*17*17)%85;
   result->z = (((int16_t)acc_data[5]) << 8) | acc_data[4];;//(__GET(_v_seed)*17*17*17)%85;
@@ -576,7 +597,6 @@ TASK(task_idle)
     if (lc_pinCont){
       __SET(pinCont,0);
       __SIGNAL(THREAD1);
-      __no_operation();
     }
 
   P3OUT &= ~BIT0;

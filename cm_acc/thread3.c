@@ -1,20 +1,7 @@
-//thread4
-
-//thread2.c
 #include "app.h"
 #include "ink.h"
 #include "dsplib/include/DSPLib.h"
 #include "app_intrinsics.h"
-
-/*FFT characteristics definitions*/
-#define FFT_SAMPLES             128
-#define INPUT_AMPLITUDE         0.5
-#define INPUT_FREQUENCY         64
-#define SAMPL_FREQ              512
-#define FFT_FREQ_THRESHOLD      1500
-#define REAL_ADC_FREQ           1000000 / (4 * 4 * 16)
-#define INDEX_THRESHOLD         FFT_FREQ_THRESHOLD / (REAL_ADC_FREQ / (2 * FFT_SAMPLES))
-
 
   /* Allocate 16-bit real FFT data vector with correct alignment */
 DSPLIB_DATA(tb_fftd, MSP_ALIGN_FFT_Q15(FFT_SAMPLES))
@@ -44,6 +31,7 @@ _q15 sampled_input[FFT_SAMPLES];
 ENTRY_TASK(task1){
   
   P3OUT |= BIT5;
+#ifndef EMULATE
   __disable_interrupt();
 	// save interrupt state and then disable interrupts
 	is = __get_interrupt_state();
@@ -71,6 +59,12 @@ ENTRY_TASK(task1){
 	{
     __SET(pers_sdata[i], sampled_input[i]);
 	}
+#else
+
+  __delay_cycles(SAMPLE_MIC_DURATION);
+
+#endif
+
   P3OUT &= ~BIT5;
 	return task2;
 }
@@ -78,6 +72,7 @@ ENTRY_TASK(task1){
 TASK(task2){
 
   P3OUT |= BIT5;
+ #ifndef EMULATE
   msp_status status;
 
   uint8_t i;
@@ -118,7 +113,11 @@ TASK(task2){
 
   /* Get peak frequency */
   status = msp_max_q15(&maxParams, tb_fftd, NULL, &max_index); 
+#else
 
+  __delay_cycles(FFT_MIC_DURATION);
+
+#endif
   //__SIGNAL(THREAD1);
   P3OUT &= ~BIT5;
   

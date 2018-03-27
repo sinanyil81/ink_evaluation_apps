@@ -22,7 +22,7 @@ time_limit 			= 0.75
 # sleep channel 
 sleep_ch			= 10
 
-data = dm.DataParser("sleep_180s.csv", 
+data = dm.DataParser("alpaca_180s_power_test_T_state_machine.csv", 
 	env_st_ch + 1,
  	high_prio_tsk_ch + 1,
 	env_evnt_ch + 1, 
@@ -46,7 +46,7 @@ print("Success Rate:	%f"%(float(data.counted_corr)/float(data.counted_events)))
 print("")
 print("False Rate: 	%f"%(float(data.counted_incorr)/float(data.counted_events)))
 print("")
-print("Miss Rate: 	%f"%(float(data.counted_events -(data.counted_corr + data.counted_incorr))/float(data.counted_events)))
+print("Miss Rate: 	%f"%(float(data.counted_events - (data.counted_corr + data.counted_incorr))/float(data.counted_events)))
 print("")
 print("+++++++++++++++++++++++++++++++++++++++")
 print("")

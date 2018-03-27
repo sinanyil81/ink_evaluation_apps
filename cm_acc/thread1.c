@@ -28,14 +28,14 @@ ENTRY_TASK(task1){
 
     P1IE |= BIT4;                              // P1.4 interrupt enabled low priority thread
     P1IE |= BIT2;                              // P1.2 interrupt enabled high priority thread
-    __delay_cycles(15);
+    // __delay_cycles(15);
 
-    uint16_t tmp = 100;
-    __enable_interrupt();
-    while(tmp--) 
-    {
-        rand();
-    }
+    // uint16_t tmp = 100;
+    // __enable_interrupt();
+    // while(tmp--) 
+    // {
+    //     rand();
+    // }
 
     //if interrupts are not available use this section
 //    if ((rand() % 2) == 0) {
@@ -86,7 +86,7 @@ _interrupt(PORT1_VECTOR)
             P1IE &= ~BIT4;
             //__disable_interrupt();
             P1IFG &= ~BIT4;                         // Clear P1.4 IFG
-            P3OUT |= BIT0;
+            // P3OUT |= BIT0;
             if(!__EVENT_BUFFER_FULL(THREAD2))
             {
               timer_event.data = NULL;
@@ -94,7 +94,7 @@ _interrupt(PORT1_VECTOR)
               timer_event.timestamp = 1;
 
             }
-            P3OUT &= ~BIT0;
+            // P3OUT &= ~BIT0;
 
             //if the same thread is executing finish it 
             if (__next_thread() != __get_thread(THREAD2))

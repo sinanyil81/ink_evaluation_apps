@@ -1,0 +1,28 @@
+
+/=============STATS 4 NERDS============/
+
+Time limit for successful capture:0.750000s
+
+Total events:95
+|_Successfully Captured:69
+|__Falsely Captured:12
+|___Missed:14
+
+Success Rate:	0.726316
+
+False Rate: 	0.126316
+
+Miss Rate: 	0.147368
+
++++++++++++++++++++++++++++++++++++++++
+
+Total Time:179.773s
+|_High priority execution: 4.481s (avg/tsk: 0.136s)
+|__Low priority execution :36.282s (avg/tsk: 0.163s)
+|___Sleep time : 0.000s (avg/instance: 0.000s)
+|____Remaining :139.010s
+
+|Avg State change reaction time(high priority):0.14326s
+|Avg Event change reaction time(low priority):0.57773s
+
+/=============END====================/

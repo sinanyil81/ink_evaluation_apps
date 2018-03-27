@@ -9,7 +9,8 @@
 
 inline uint8_t valid_signal(void){
 
-  P2OUT |= BIT2;
+  // P2OUT |= BIT2;
+#ifndef EMULATE
   //__disable_interrupt();
   uint8_t acc_data[NUM_BYTES_RX];
   //get samples 
@@ -28,8 +29,15 @@ inline uint8_t valid_signal(void){
         current = medfilter(tmp);
         __delay_cycles(200);
   }
+#else
+
+  __delay_cycles(FILTER_DURATION);
+  uint16_t current = 1;
+  
+#endif
   //__enable_interrupt();
-  P2OUT &= ~BIT2;
+  // P2OUT &= ~BIT2;
+  
   if (current < BOUND ) return 1;
   else return 0;
 }
