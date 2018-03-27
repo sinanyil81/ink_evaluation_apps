@@ -9,6 +9,7 @@
 
 inline uint8_t valid_signal(void){
 
+  P2OUT |= BIT2;
   //__disable_interrupt();
   uint8_t acc_data[NUM_BYTES_RX];
   //get samples 
@@ -28,6 +29,7 @@ inline uint8_t valid_signal(void){
         __delay_cycles(200);
   }
   //__enable_interrupt();
+  P2OUT &= ~BIT2;
   if (current < BOUND ) return 1;
   else return 0;
 }

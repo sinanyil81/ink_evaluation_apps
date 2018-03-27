@@ -18,8 +18,8 @@ void thread1_init(){
     // create a thread with priority 15 and entry task task1
     __CREATE(THREAD1,task1);
     __SIGNAL(THREAD1);
-    P3OUT |= BIT6;
-    P3OUT &= ~BIT6;
+//    P3OUT |= BIT6;
+//    P3OUT &= ~BIT6;
 }
 
 
