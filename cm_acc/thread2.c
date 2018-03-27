@@ -9,7 +9,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <math.h>
 
 //Classification part expires at 543,0 ms
 #define EXPRIRATION_TIME 5430
@@ -22,7 +21,7 @@
 #define SAMPLE_NOISE_FLOOR 10 // TODO: made up value
 
 // Number of classifications to complete in one experiment
-#define SAMPLES_TO_COLLECT 256
+#define SAMPLES_TO_COLLECT 512
 
 
 typedef struct 
@@ -52,6 +51,7 @@ typedef enum {
     MODE_TRAIN_MOVING = 1,
     MODE_RECOGNIZE = 0, // default
 } run_mode_t;
+
 
 uint8_t acc_data[NUM_BYTES_RX];
 
@@ -99,6 +99,7 @@ TASK(task_idle);
 
 uint8_t acc_data[NUM_BYTES_RX];
 
+unsigned isqr_Newton(unsigned x);
 
 void thread2_init(){
 
@@ -185,6 +186,7 @@ TASK(task2){
 //Dummy data sampling
 void ACCEL_singleSample_(threeAxis_t_8* result){
    
+  P4OUT |= BIT3;
   i2c_init();
 
   i2c_write(ADXL_345 , ADXL_CONF_REG , 0x00);
@@ -192,11 +194,11 @@ void ACCEL_singleSample_(threeAxis_t_8* result){
   i2c_write(ADXL_345, ADXL_CONF_REG, 0x08);
 
   i2c_read_multi(ADXL_345, READ_REG, NUM_BYTES_RX, &acc_data);
+  P4OUT &= ~BIT3;
   
   result->x = (((int16_t)acc_data[1]) << 8) | acc_data[0];//(__GET(_v_seed)*17)%85;
   result->y = (((int16_t)acc_data[3]) << 8) | acc_data[2];//(__GET(_v_seed)*17*17)%85;
   result->z = (((int16_t)acc_data[5]) << 8) | acc_data[4];;//(__GET(_v_seed)*17*17*17)%85;
-        
 }
 
 
@@ -423,8 +425,8 @@ TASK(task_featurize)
 
     unsigned meanmag = mean.x*mean.x + mean.y*mean.y + mean.z*mean.z;
     unsigned stddevmag = stddev.x*stddev.x + stddev.y*stddev.y + stddev.z*stddev.z;
-    features.meanmag   = sqrt(meanmag);
-    features.stddevmag = sqrt(stddevmag);
+    features.meanmag   = isqr_Newton(meanmag);
+    features.stddevmag = isqr_Newton(stddevmag);
 
     switch (mode) {
         case MODE_TRAIN_STATIONARY:
@@ -643,4 +645,23 @@ TASK(task_train)
           return task_idle;
       }
 
+}
+
+
+
+unsigned isqr_Newton(unsigned x) {
+  unsigned rt[3] = {1,0,0};  // current and previous 2 root candidates
+
+  unsigned x2 = x; // Form initial guess
+  while (x2 > rt[0]) {
+    x2 >>= 1;
+    rt[0] <<= 1;
+  }
+
+  do {
+    rt[2] = rt[1];
+    rt[1] = rt[0];
+    rt[0] = (x/rt[0] + rt[0])/2;
+    } while (rt[1] != rt[0] && rt[2] != rt[0]);
+  return (rt[0] + rt[1])/2;
 }
